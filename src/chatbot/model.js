@@ -6,6 +6,7 @@ import { AgentExecutor } from "langchain/agents";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import z from "zod";
 import * as Blockly from "blockly/core";
+import { getDefinedBlocks, getWorkspaceBlockDetails } from "./tools";
 
 
 const get_workspace_json = tool(
@@ -36,13 +37,69 @@ const add_block = tool(
   }
 );
 
-// const get_available_blocks = tool(
-//   getDefinedBlocks,
-//   {
-//     name: "get_available_blocks",
-//     description: "Returns a list of all available blocks",
-//   }
-// );
+const get_available_blocks = tool(
+  async () => {
+    return await getDefinedBlocks();
+  },
+  {
+    name: "get_available_blocks",
+    description: "Returns a list of all available block types with their details, including inputs, outputs, and descriptions",
+  }
+);
+
+const get_workspace_block_details = tool(
+  async () => {
+    return await getWorkspaceBlockDetails();
+  },
+  {
+    name: "get_workspace_block_details", 
+    description: "Returns detailed information about all blocks currently in the workspace, including their positions, connections, and field values",
+  }
+);
+
+const analyze_code_blocks = tool(
+  async ({ code }) => {
+    const workspace = Blockly.getMainWorkspace();
+    
+    try {
+      // Get current workspace details
+      const workspaceDetails = await getWorkspaceBlockDetails();
+      const availableBlocks = await getDefinedBlocks();
+      
+      // Generate current code from workspace using imported pythonGenerator
+      const { pythonGenerator } = await import("../micropython/setup");
+      const currentCode = pythonGenerator.workspaceToCode(workspace);
+      
+      return {
+        providedCode: code,
+        currentWorkspaceCode: currentCode,
+        workspaceBlocks: workspaceDetails,
+        availableBlockTypes: availableBlocks.map(b => ({
+          type: b.type,
+          comment: b.comment,
+          category: b.category
+        })),
+        analysis: {
+          hasBlocks: workspaceDetails.totalBlocks > 0,
+          blockCount: workspaceDetails.totalBlocks,
+          topLevelBlocks: workspaceDetails.workspaceStats.topBlocks
+        }
+      };
+    } catch (error) {
+      return {
+        error: `Error analyzing code: ${error.message}`,
+        providedCode: code
+      };
+    }
+  },
+  {
+    name: "analyze_code_blocks",
+    description: "Analyzes provided code and compares it with current workspace blocks, returns detailed analysis",
+    schema: z.object({
+      code: z.string().describe("The code to analyze and compare with current workspace")
+    })
+  }
+);
 
 const add_print_block = tool(
   async ({ message }) => {
@@ -64,11 +121,9 @@ const add_print_block = tool(
     name: "add_print_block",
     description:
       "Adds a print block to the workspace to print a specific message",
-    schema: z.object(
-        {
-        block_type: z.string().describe("Text to print")
-        }
-    )
+    schema: z.object({
+      message: z.string().describe("Text to print")
+    })
   }
 );
 
@@ -76,12 +131,23 @@ const tools = [
   get_workspace_json,
   add_block,
   add_print_block,
+  get_available_blocks,
+  get_workspace_block_details,
+  analyze_code_blocks,
 ];
 
 const prompt = ChatPromptTemplate.fromMessages([
   [
     "system",
-    "You are a helpful assistant who can work with the blockly workspace. You can add blocks to the workspace based on user requests. You can find the defined blocks and plan your actions accordingly.Use only available blocks",
+    "You are a helpful assistant specialized in working with Blockly visual programming workspace. You have comprehensive tools to:\n" +
+    "1. Analyze and understand all available block types with their properties and capabilities\n" +
+    "2. Examine the current workspace and understand what blocks are already placed\n" +
+    "3. Add new blocks to the workspace based on user requirements\n" +
+    "4. Analyze code and understand how it relates to the visual blocks\n" +
+    "5. Get detailed information about block connections, inputs, outputs, and configurations\n\n" +
+    "Always use the available tools to understand the current state before making changes. " +
+    "Use only blocks that are available in the system. When adding blocks, consider their " +
+    "connections and relationships with existing blocks in the workspace.",
   ],
   ["placeholder", "{chat_history}"],
   ["human", "{input}"],
