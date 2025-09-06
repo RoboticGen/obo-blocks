@@ -24,9 +24,22 @@ import { theme } from "./blocky/themes";
 import { save, load, exportJson, importJson } from "./blocky/serialization";
 
 import { worker, terminal, stopWorker } from "./pyodide/loader";
+import { getDefinedBlocks } from "./chatbot/tools";
 
-import { createPinButtonCallback , createADCButtonCallback ,createPWMButtonCallback, createI2CButtonCallback } from "./micropython/callback";
-import { pinCategoryFlyout ,adcCategoryFlyout , pwmCategoryFlyout ,i2cCategoryFlyout} from "./micropython/flyouts";
+import {
+  createPinButtonCallback,
+  createADCButtonCallback,
+  createPWMButtonCallback,
+  createI2CButtonCallback,
+} from "./micropython/callback";
+import {
+  pinCategoryFlyout,
+  adcCategoryFlyout,
+  pwmCategoryFlyout,
+  i2cCategoryFlyout,
+} from "./micropython/flyouts";
+
+import { executor } from "./chatbot/model";
 
 let editable = false;
 let ws;
@@ -50,6 +63,7 @@ const runButtonText = document.getElementById("run-text");
 const editbuttonText = document.getElementById("edit-text");
 const codeDiv = document.getElementById("code");
 const outputDiv = document.getElementById("output");
+const runModelButton = document.getElementById("run-model-button");
 
 // ------------------- Event Listners -----------------------------
 // obo_blocks_logo.src = oboBlocksLogo
@@ -58,8 +72,6 @@ const outputDiv = document.getElementById("output");
 
 Blockly.common.defineBlocks(blocks);
 Object.assign(pythonGenerator.forBlock, forBlock);
-
-
 
 Blockly.registry.register(
   Blockly.registry.Type.TOOLBOX_ITEM,
@@ -127,17 +139,28 @@ function showNotification(message) {
 function initBlokly(workspace) {
   workspace = Blockly.inject(blocklyDiv, options);
   workspace.registerToolboxCategoryCallback("PIN", pinCategoryFlyout);
-  workspace.registerToolboxCategoryCallback("ADC",adcCategoryFlyout)
-  workspace.registerToolboxCategoryCallback("PWM",pwmCategoryFlyout)
-  workspace.registerToolboxCategoryCallback("I2C",i2cCategoryFlyout)
+  workspace.registerToolboxCategoryCallback("ADC", adcCategoryFlyout);
+  workspace.registerToolboxCategoryCallback("PWM", pwmCategoryFlyout);
+  workspace.registerToolboxCategoryCallback("I2C", i2cCategoryFlyout);
 
-  workspace.registerButtonCallback("CREATE_PIN_VARIABLE", createPinButtonCallback);
-  workspace.registerButtonCallback("CREATE_ADC_VARIABLE",createADCButtonCallback);
-  workspace.registerButtonCallback("CREATE_PWM_VARIABLE",createPWMButtonCallback);
-  workspace.registerButtonCallback("CREATE_I2C_VARIABLE",createI2CButtonCallback);
+  workspace.registerButtonCallback(
+    "CREATE_PIN_VARIABLE",
+    createPinButtonCallback
+  );
+  workspace.registerButtonCallback(
+    "CREATE_ADC_VARIABLE",
+    createADCButtonCallback
+  );
+  workspace.registerButtonCallback(
+    "CREATE_PWM_VARIABLE",
+    createPWMButtonCallback
+  );
+  workspace.registerButtonCallback(
+    "CREATE_I2C_VARIABLE",
+    createI2CButtonCallback
+  );
 
-
-  workspace.updateToolbox(toolbox)
+  workspace.updateToolbox(toolbox);
   workspace.addChangeListener((e) => {
     if (
       e.isUiEvent ||
@@ -285,3 +308,29 @@ document.addEventListener("DOMContentLoaded", () => {
   notification.style.transition = "opacity 0.5s ease-in-out";
   ws.resize();
 });
+
+let add_printblock = async (message) => {
+   let workspace = Blockly.getMainWorkspace();
+      let newBlock = workspace.newBlock("print_block");
+      let stringBlock = workspace.newBlock("string_block");
+      stringBlock.setFieldValue(message, "input");
+      stringBlock.initSvg();
+      stringBlock.render();
+  
+      let connection = newBlock.getInput("value");
+      if (connection) {
+        connection.connection.connect(stringBlock.outputConnection);
+      }
+      newBlock.initSvg();
+      newBlock.render();
+};
+
+
+runModelButton.addEventListener("click", async () => {
+  const input = prompt("What do you want to do with AI")
+  const result = await executor.invoke({ input: input});
+  console.log("Agent Result: ", result);
+  // add_printblock("Yasantha")
+  
+});
+

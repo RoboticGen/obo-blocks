@@ -25,7 +25,12 @@ Blockly.Blocks["string_block"] = {
     this.setColour("#59C059");
     this.setTooltip("");
     this.setHelpUrl("");
+    this.setCommentText(`
+      This block used to represent a string value.
+      Inputs: input (string) - The text value of the string block.
+      Outputs: (string) - The string value.`)
   },
+
 };
 
 Blockly.Blocks["add_block"] = {

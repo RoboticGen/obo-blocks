@@ -25,5 +25,13 @@
     "webpack": ">=5.94.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.54",
+    "@langchain/core": "^0.3.72",
+    "@langchain/google-genai": "^0.2.16",
+    "@langchain/langgraph": "^0.4.9",
+    "langchain": "^0.3.33",
+    "zod": "^3.25.76"
   }
 }
